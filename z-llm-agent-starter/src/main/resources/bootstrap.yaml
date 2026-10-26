@@ -1,0 +1,8 @@
+# z-boot 框架要求 bootstrap.yaml 配置应用名（决定 context-path）
+zteam:
+  application:
+    name: z-llm-agent
+  extension:
+    datasource:
+      route:
+        enable: false

@@ -1,22 +1,20 @@
-# z-llm-agent-proxy
+# z-llm-agent
 
-> **CLI Agent 代理服务** —— 把本机 CLI agent 暴露成 OpenAI 兼容的 streaming chat API，并向 Nacos 注册。
+> **CLI Agent 服务化（一个产品，一个仓）** —— 把本机 CLI agent（Claude Code / Hermes / Qoder / Opencode / Minimax）
+> 暴露成 OpenAI 兼容的可对话 agent：proxy 进程管"接进来"，core/client/starter 管"服务化出去"。
 >
-> **2026-10-26 从 `z-team/z-llm-agent/z-llm-agent-proxy` 平移为独立仓。**
-> 包名 `com.zifang.z.team.agent.proxy` **原样保留**（内部包，无对外 API 承诺，改名收益不抵风险）。
+> **2026-10-26 收敛为独立仓**：`z-team/z-llm-agent`（4 模块）+ 当日短暂独立的 `z-llm-agent-proxy` 合并为本 reactor。
+> 上游血缘：feature-team 的 `future-llm-agent`（五模块一一对应）。包名 `com.zifang.z.team.*` 原样保留。
 
 ## 📋 基本信息
 
 | 项 | 值 |
 |---|---|
-| 形态 | **服务**（单模块 jar + shade fat jar），不是库，没有 core/starter 分层 |
-| 坐标 | `io.github.yuku123:z-llm-agent-proxy`（`${revision}`，当前 `1.0.47`） |
+| 形态 | **库 + 服务混合 reactor**（5 模块；proxy 是可运行服务，其余是库件） |
+| 坐标 | `io.github.yuku123:z-llm-agent`（`${revision}`，当前 `1.0.47`；Central 历史随 z-team 发到 1.0.46） |
 | parent | `io.github.yuku123:z-boot-parent:1.1.2` |
 | Java | Java 8 编译 / JRE 17 运行 |
-| 端口 | `9098`（`--port=` 可覆盖） |
-| 产出物 | `target/z-llm-agent-proxy.jar`（fat jar，主类 `com.zifang.z.team.agent.proxy.ProxyApplication`） |
-| 代码量 | 27 个 main 类 + 8 个测试类 |
-| 依赖 | `z-team-agent-core:1.0.46`（Central）· jackson · snakeyaml · nacos-client · z-util-parser-json |
+| 兄弟仓钉版 | `z-team-agent-core:1.0.46` · `z-llm-msghub-client:1.0.46` · `z-util-{core,parser-json,dsl-kernel}:1.2.4`（reactor DM 统一钉） |
 
 ## 🎯 能力清单（逐条对得上代码）
 
@@ -46,25 +44,29 @@ java -jar target/z-llm-agent-proxy.jar --port=19098
 curl http://127.0.0.1:19098/health  →  {"status":"ok"}
 ```
 
-## 🏗️ 项目结构
+## 🏗️ 项目结构（5 模块）
+
+| 模块 | 职责 | 产物 |
+|---|---|---|
+| `z-llm-agent-common` | DTO、错误码（零运行时依赖） | 库件 |
+| `z-llm-agent-proxy` | 本地 CLI 代理：自动发现 + OpenAI 兼容流式 API + Nacos 注册 | **fat jar 服务**（主类 `proxy.ProxyApplication`） |
+| `z-llm-agent-core` | CliAgentService 门面、proxy 生命周期、代码仓磁盘运维 | 库件 |
+| `z-llm-agent-client` | HTTP SDK（`CliAgentClient`） | 库件 |
+| `z-llm-agent-starter` | 可运行 Spring Boot 进程 | `*-boot.jar`（主类 `cliagent.CliAgentApplication`） |
 
 ```
-z-llm-agent-proxy/
-├── pom.xml                          # 单模块 + shade fat jar（排除 spring/mybatis 生态）
-├── _doc/001_arch/00-overview.md
-├── deploy/                          # Dockerfile + compose + Makefile
-└── src/
-    ├── main/java/com/zifang/z/team/agent/proxy/     # HTTP 层 + 发现 + 注册 + 会话（10 类）
-    ├── main/java/com/zifang/z/team/agent/wrapper/   # CLI 适配层（17 类）
-    └── test/java/com/zifang/z/team/agent/wrapper/   # 8 个测试类
+z-llm-agent/
+├── pom.xml                  # reactor：parent z-boot-parent:1.1.2，flatten 常开
+├── _doc/  deploy/           # 架构文档与 proxy 的 Dockerfile/compose/Makefile
+├── z-llm-agent-proxy/src/   # proxy/（HTTP 层 10 类）+ wrapper/（CLI 适配 17 类）+ 8 测试类
+└── z-llm-agent-{common,core,client,starter}/
 ```
 
 ## 构建与运行
 
 ```bash
-mvn -B -DskipTests package            # 产出 target/z-llm-agent-proxy.jar（约 47 MB）
-java -jar target/z-llm-agent-proxy.jar                       # 默认 9098
-java -jar target/z-llm-agent-proxy.jar --port=9098 --nacos.addr=127.0.0.1:8848
+mvn -B -DskipTests package            # 五模块全绿，proxy 产出 fat jar（约 47 MB），starter 产出 *-boot.jar
+java -jar z-llm-agent-proxy/target/z-llm-agent-proxy.jar --port=9098 --nacos.addr=127.0.0.1:8848
 curl http://127.0.0.1:9098/health
 ```
 
@@ -79,14 +81,14 @@ curl http://127.0.0.1:9098/health
 
 | 仓 | 关系 |
 |---|---|
-| `z-team` | **原宿主**。本仓平移后已从 `z-team/z-llm-agent/pom.xml` 移除 module |
+| `z-team` | **原宿主**。2026-10-26 起整个家族（含 4 个库模块）迁出，z-team 改为消费 Central 坐标（DM 钉 1.0.46） |
 | `z-team-agent-core` | 上游依赖（`CliAgentConfig` / `CliAgentRegistry` / `CliChatExecutor` / DTO），走 Central `1.0.46` |
 | `z-agent-proxy` | **不是同一个东西**：那个是 Aider/Cursor → `kernel.agent.Agent` SPI 的纯 jar 库；本仓是 CLI → OpenAI HTTP 的服务 |
 | `z-agent` / `z-bot` | 潜在消费方：把本仓当"本机 CLI 算力入口" |
 
 ## 发布
 
-- **Central**：`io.github.yuku123:z-llm-agent-proxy`。历史上一直随 z-team 发布（Central 已有 1.0.14 ~ 1.0.46），本仓版本接着走 `1.0.47`，**不与历史断线**。
+- **Central**：`io.github.yuku123:z-llm-agent-*` 五坐标。历史上一直随 z-team 发布（Central 已有 1.0.14 ~ 1.0.46），本仓版本接着走 `1.0.47`，**不与历史断线**。
 - **镜像**：`make image` → 组织中心仓库。
 
 ---

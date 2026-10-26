@@ -1,0 +1,25 @@
+# CLI Agent 独立进程默认配置；端口可由 Nacos / 启动参数覆盖（设计默认 8092）
+#server:
+#  port: 8092
+
+cli-agent:
+  enabled: true
+  embed-proxy: true
+  proxy-port: 18180
+  proxy-base-url: http://127.0.0.1:18180
+  run-timeout-seconds: 600
+  http-read-timeout-seconds: 600
+  session-dir: ~/.z-team
+  default-cli-type: claude-code
+  worker:
+    agent-core: 1
+    agent-max: 2
+    agent-queue: 8
+  repos:
+    enabled: true
+    root: ""
+    clone-timeout-minutes: 10
+    # ⚠ 凭据一律留空默认，由 Nacos / 环境变量注入（属性源 env > jar 内 yaml）：
+    # 字面量默认值会随 jar 发到 Maven Central（中央件不可撤回）⇒ 见 046 卡同类处置。
+    git-username: ${CLI_AGENT_GIT_USERNAME:}
+    git-password: ${CLI_AGENT_GIT_PASSWORD:}

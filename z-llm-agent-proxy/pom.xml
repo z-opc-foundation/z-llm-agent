@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        z-llm-agent-proxy —— CLI 本地代理服务模块（2026-10-26 归位回本 reactor；
+        当日曾短暂独立成仓，同日与 z-team/z-llm-agent 的 4 个模块合并为本仓）。
+
+        形态：服务（shade fat jar），产出物是 `java -jar` 可跑的进程，并向 Nacos 注册。
+
+        平移时保留的东西：
+          - 包名 com.zifang.z.team.agent.proxy 原样不动（改动面太大，且它是内部包，无对外 API 承诺）；
+          - 所有依赖与 shade 过滤器原样保留（里面有踩过坑的注释，别删）。
+
+        平移时改掉的东西：
+          - parent：z-team → z-boot-parent → 现在的 z-llm-agent（本 reactor）；
+          - z-team-agent-core 版本由 reactor DM 统一钉版（z-boot-parent 不管兄弟仓的 agent 线）。
+    -->
+    <parent>
+        <groupId>io.github.yuku123</groupId>
+        <artifactId>z-llm-agent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>z-llm-agent-proxy</artifactId>
+    <version>${revision}</version>
+    <packaging>jar</packaging>
+    <name>z-llm-agent-proxy (CLI Agent Proxy)</name>
+    <description>
+        Standalone CLI proxy: auto-discover local CLI agents, expose OpenAI-compatible streaming chat API.
+        把本机 CLI agent（Claude Code / Qoder / Hermes / Opencode / Minimax）暴露成 OpenAI 兼容
+        streaming chat API，并向 Nacos 注册。Wrapper 层已合入本模块。
+    </description>
+
+
+    <dependencies>
+        <!-- 复用 core 的 CliAgentConfig / CliAgentRegistry / ChatCompletionRequest / Response DTO -->
+        <dependency>
+            <groupId>io.github.yuku123</groupId>
+            <artifactId>z-team-agent-core</artifactId>
+        </dependency>
+
+        <!-- JSON 解析（StreamJsonParser / ProxyChatHandler 用，与 core 统一） -->
+        <!-- YAML 配置解析（MinimaxConfigLoader 读 ~/.hermes/config.yaml） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+        <!-- jackson-dataformat-yaml 2.13.x 依赖 snakeyaml 1.x API，classpath 上的 2.0 会 NoSuchMethod -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Nacos 服务注册（proxy 启动后将自己注册到 Nacos） -->
+        <dependency>
+            <groupId>com.alibaba.nacos</groupId>
+            <artifactId>nacos-client</artifactId>
+        </dependency>
+        <!-- z-util-parser-json (替换 fastjson: 提供 JsonUtil + JsonObject + JsonArray) -->
+        <dependency>
+            <groupId>io.github.yuku123</groupId>
+            <artifactId>z-util-parser-json</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>z-llm-agent-proxy</finalName>
+        <plugins>
+            <!-- 刻意不加 enforcer 的"日志绑定唯一性"规则：那是给 Spring 服务用的。
+                 本仓用 java.util.logging，且 z-team-agent-core → z-agent-engine → spring-boot-starter
+                 会把 spring-boot-starter-logging 带进编译期 classpath（shade 的
+                 `org/springframework/**` 过滤器保证它不进 fat jar）。加了这条规则会当场把构建拦死，
+                 而它防的问题在本仓不存在。 -->
+
+            <!-- fat JAR 打包（原样保留：里面的排除项是踩过坑的，别删） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.zifang.z.team.agent.proxy.ProxyApplication</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- FEATURE054: 不打包 mybatis/mybatis-plus/spring 生态 jar,
+                                             避免 fat jar 作为依赖被引入下游服务时, 内部类加载器优先读到旧版,
+                                             与下游声明的 mybatis 3.5.16 冲突 (Configuration.setNullableOnForEach 缺失).
+                                             这些 jar 下游会显式提供, proxy 仅使用 CompileApi. -->
+                                        <exclude>org/apache/ibatis/**</exclude>
+                                        <exclude>org/mybatis/**</exclude>
+                                        <exclude>org/mybatis/spring/**</exclude>
+                                        <exclude>com/baomidou/**</exclude>
+                                        <exclude>org/springframework/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+</project>
