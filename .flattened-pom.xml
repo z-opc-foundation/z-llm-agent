@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.yuku123</groupId>
+  <artifactId>z-llm-agent-proxy</artifactId>
+  <version>1.0.47</version>
+  <name>z-llm-agent-proxy (CLI Agent Proxy)</name>
+  <description>Standalone CLI proxy: auto-discover local CLI agents, expose OpenAI-compatible streaming chat API.
+        把本机 CLI agent（Claude Code / Qoder / Hermes / Opencode / Minimax）暴露成 OpenAI 兼容
+        streaming chat API，并向 Nacos 注册。Wrapper 层已合入本模块。</description>
+  <url>https://github.com/z-opc-foundation/z-llm-agent-proxy</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>yuku123</id>
+      <name>yuku123</name>
+      <email>1340947819@qq.com</email>
+      <organization>z-opc-foundation</organization>
+      <organizationUrl>https://github.com/z-opc-foundation</organizationUrl>
+      <roles>
+        <role>owner</role>
+      </roles>
+      <timezone>+08:00</timezone>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/z-opc-foundation/z-llm-agent-proxy.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/z-opc-foundation/z-llm-agent-proxy.git</developerConnection>
+    <url>https://github.com/z-opc-foundation/z-llm-agent-proxy</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.yuku123</groupId>
+      <artifactId>z-team-agent-core</artifactId>
+      <version>1.0.46</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <version>2.18.6</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>1.30</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.18.6</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.alibaba.nacos</groupId>
+      <artifactId>nacos-client</artifactId>
+      <version>2.0.4</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.yuku123</groupId>
+      <artifactId>z-util-parser-json</artifactId>
+      <version>1.0.22</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
