@@ -27,3 +27,4 @@ application-local.yml
 # 日志
 *.log
 logs/
+.gnupg/

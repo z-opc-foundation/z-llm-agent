@@ -184,4 +184,174 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- 发布 Maven Central 专用 profile：bash _doc/003_script/deploy_maven_center.sh
+         结构照抄 z-util 的实战版（见 lead/003_辅助能力/maven-central-publish 与踩坑记录）：
+         - deploy-plugin skip + central-publishing-maven-plugin 接管，不会重复 deploy
+         - javadoc doclint=none（Java 8 的 HTML5 校验必炸，Central 又强制要 javadoc.jar）
+         - antrun 剔掉 JDK 自带 javadoc 静态资产（DejaVu 字体那批，占 javadoc 体积 78%，
+           体积大了会被 central.sonatype.com 前面的 Cloudflare 100 秒掐断，实测 524）
+         - gpg 3.2.8 不读 -Dgpg.passphrase，必须走仓内 gpg-with-passphrase.sh 预喂
+         - keyring 用仓内 .gnupg（GNUPGHOME 由发布脚本 export），私钥与 z-util 同一把 -->
+    <profiles>
+        <profile>
+            <id>central</id>
+            <properties>
+                <!-- true 跳过 javadoc / GPG（本地 dry-run 用）；真发 Central 时 false -->
+                <maven.javadoc.skip>false</maven.javadoc.skip>
+                <central.gpg.skip>false</central.gpg.skip>
+                <!-- 发布包瘦身：Central 只发库件坐标，两个 fat jar 不上 Central
+                     （proxy shaded 44MB + starter boot 126MB，bundle 合计 155MB，
+                     本机实测上行 0.13MB/s ⇒ 上传 2.5 分钟即被 central.sonatype.com
+                     前面的 Cloudflare 掐断 Broken pipe，1.0.47 三连发全死在这）。
+                     fat jar 可随时本地 `mvn package` 复现，属部署产物而非消费坐标。
+                     z-team 时代 1.0.46 的 boot.jar 是在快网环境发的，不具可复制性。 -->
+                <!-- shade 插件 3.5.1 的 skip 参数**没有绑定命令行属性**（plugin.xml 里
+                     <skip implementation="boolean" default-value="false"/>，无 expression），
+                     -Dshade.skip 是哑弹，必须在下面用显式插件配置关掉。
+                     spring-boot 的 repackage 有 spring-boot.repackage.skip 属性，上面够用。 -->
+                <spring-boot.repackage.skip>true</spring-boot.repackage.skip>
+            </properties>
+            <distributionManagement>
+                <repository>
+                    <id>central</id>
+                    <url>https://central.sonatype.com</url>
+                </repository>
+                <snapshotRepository>
+                    <id>central</id>
+                    <url>https://central.sonatype.com</url>
+                </snapshotRepository>
+            </distributionManagement>
+            <build>
+                <plugins>
+                    <!-- 中央发布场景禁用 maven-deploy-plugin 的 default-deploy，
+                         改由 central-publishing-maven-plugin 接管（避免重复 deploy） -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>3.1.4</version>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+
+                    <!-- Central 强制要求 sources.jar -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.2.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Central 强制要求 javadoc.jar；doclint=none 规避 Java 8+ HTML5 校验 -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.11.2</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <failOnError>false</failOnError>
+                            <failOnWarnings>false</failOnWarnings>
+                            <quiet>true</quiet>
+                            <source>1.8</source>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- 剔掉 javadoc.jar 里 JDK 自带的静态资产（resource-files/script-files 等）。
+                         目录名随 JDK 大版本变，所以「有就剔、没有（zip 12）就算过」，两个布局都试。 -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>strip-javadoc-resource-files</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <exec executable="sh" failonerror="true">
+                                            <arg value="-c"/>
+                                            <arg value="jar=&quot;${project.build.directory}/${project.build.finalName}-javadoc.jar&quot;; test -f &quot;$jar&quot; || exit 0; zip -q -d &quot;$jar&quot; 'resource-files/*' 'script-files/*'; rc=$?; [ &quot;$rc&quot; -eq 0 ] || [ &quot;$rc&quot; -eq 12 ]"/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- 发布包瘦身：Central 只发库件坐标，proxy 的 shaded fat jar 不上 Central
+                         （44MB；连同 starter boot.jar 126MB 曾把 bundle 撑到 155MB，
+                         本机实测上行 0.13MB/s ⇒ 上传 2.5 分钟即被 central.sonatype.com
+                         前面的 Cloudflare 掐断 Broken pipe，1.0.47 三连发全死在这）。
+                         fat jar 可随时本地 `mvn package` 复现，属部署产物而非消费坐标。
+                         z-team 时代 1.0.46 的 fat jar 是在快网环境发的，不具可复制性。 -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+
+                    <!-- GPG 签名：3.2.8 不读 -Dgpg.passphrase，由仓内 wrapper 预喂
+                         （headless macOS 上默认 gpg-agent 必撞 No pinentry） -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <configuration>
+                            <skip>${central.gpg.skip}</skip>
+                            <executable>${maven.multiModuleProjectDirectory}/_doc/003_script/gpg-with-passphrase.sh</executable>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Central Portal 上传插件（替代老的 nexus-staging）。
+                         五个模块全进 bundle（与 z-team 时代 1.0.46 的发布面一致），无需 excludeArtifacts -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.7.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <tokenAuth>true</tokenAuth>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>uploaded</waitUntil>
+                            <waitMaxTime>1800</waitMaxTime>
+                            <waitPollingInterval>10</waitPollingInterval>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

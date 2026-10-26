@@ -88,7 +88,10 @@ curl http://127.0.0.1:9098/health
 
 ## 发布
 
-- **Central**：`io.github.yuku123:z-llm-agent-*` 五坐标。历史上一直随 z-team 发布（Central 已有 1.0.14 ~ 1.0.46），本仓版本接着走 `1.0.47`，**不与历史断线**。
+- **Central**：`io.github.yuku123:z-llm-agent-*` 六坐标（含 reactor 根 pom）。历史上一直随 z-team 发布（Central 已有 1.0.14 ~ 1.0.46），本仓首发 **1.0.47（2026-10-26）**，不与历史断线。
+- **发布包只含库件**：proxy 的 shaded fat jar（44MB）与 starter 的 `-boot.jar`（126MB）**不上 Central**（central profile 里 skip 了 shade/repackage）——fat jar 是部署产物不是消费坐标，本地 `mvn package` 随时复现。起因：本机上行 0.13MB/s，带 fat jar 的 155MB bundle 上传必被 Cloudflare 掐断（Broken pipe）。
+- **本机代理坑**：`central-publishing-maven-plugin` 的 HTTP 客户端走本机代理（127.0.0.1:57681）上传必 Broken pipe（bundle 小到 963K 也断）；构建/签名/staging 都正常。`deploy_maven_center.sh` 已内置兜底：bundle 生成后改用 curl 直传 Portal API（实测 3 秒 201）。
+- **发布命令**：`bash _doc/003_script/deploy_maven_center.sh publish`（凭证在仓内 `.env`，GPG keyring 在仓内 `.gnupg`，与 z-util 同一把私钥）。
 - **镜像**：`make image` → 组织中心仓库。
 
 ---
