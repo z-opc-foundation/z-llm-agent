@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.yuku123</groupId>
+        <artifactId>z-llm-agent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>z-agent-proxy</artifactId>
+    <packaging>jar</packaging>
+
+    <name>z-agent-proxy (Third-party Agent Adapter)</name>
+    <description>三方 agent 适配代理：Cursor / Operator / Aider / Codeium / Continue → z-agent-kernel Agent SPI。2026-10-26 自独立仓 z-agent-proxy（0.1.1 止于 Central 存档）挂入本 reactor，artifactId 保持不变以续坐标血缘</description>
+
+    <!--
+        三方 adapter 只需 kernel.agent SPI + kernel.message + kernel.types（版本由
+        z-boot-parent 的 fleet DM 供给）；z-util 三格沿用本仓根 DM 的 1.2.4 钉
+        （≥ 独立仓时代的 1.2.2，toPlainValue/JsonCursor 这些 1.1.1+ API 全在），
+        「三格必须同笔钉」的原则不变。
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- kotlin 四格写字面 1.9.21：父链（spring-boot 2.7.18）把 okhttp 4.12.0 自带的
+                 1.8.21、地板 okio 3.9.0 自带的 1.9.21 一起压成 1.6.21 ⇒ 拒静默降级 -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>1.9.21</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-common</artifactId>
+                <version>1.9.21</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk7</artifactId>
+                <version>1.9.21</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>1.9.21</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- 自研 JSON（去 Jackson 树导航）：CursorAdapter 用 JsonCursor 读响应树，版本走根 DM -->
+        <dependency>
+            <groupId>io.github.yuku123</groupId>
+            <artifactId>z-util-parser-json</artifactId>
+        </dependency>
+
+        <!-- 三方代理只需 kernel.agent SPI + kernel.message + kernel.types（其他按需） -->
+        <dependency>
+            <groupId>io.github.yuku123</groupId>
+            <artifactId>z-agent-kernel-agent</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.yuku123</groupId>
+            <artifactId>z-agent-kernel-message</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.yuku123</groupId>
+            <artifactId>z-agent-kernel-types</artifactId>
+        </dependency>
+
+        <!-- OkHttp 用于远程三方 agent 通信（Cursor/Operator/Codeium/Continue 都走 REST） -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- slf4j-api 留字面 2.0.16：父链给的是 spring-boot 2.7.18 的 1.7.36，删这行就是静默降级 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+
+        <!-- 存量 AiderAdapterTest 是 JUnit 4（org.junit.Test）：junit4 API 由 spring-boot BOM 供版；
+             junit-jupiter / vintage-engine 由本仓根 pom 测试台直供（ReadmeClaimsTest 走 JUnit 5） -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <proc>none</proc>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <!-- 继承父链 pluginManagement 的 2.22.2（3.0.0-M5 的 JUnitPlatformProvider 坑，
+                     见 z-team 1.0.9 那轮修复，勿再钉旧版）。
+                     project.version 显式注入：ReadmeClaimsTest 的版本主张要跟构建真值对账，
+                     而挂入 reactor 后版本由父链 ${revision} 供给，forked JVM 里拿不到。 -->
+                <configuration>
+                    <systemPropertyVariables>
+                        <project.version>${project.version}</project.version>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
