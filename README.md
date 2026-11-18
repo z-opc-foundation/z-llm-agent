@@ -12,7 +12,7 @@
 |---|---|
 | 形态 | **库 + 服务混合 reactor**（5 模块；proxy 是可运行服务，其余是库件） |
 | 坐标 | `io.github.yuku123:z-llm-agent`（`${revision}`，当前 `1.0.47`；Central 历史随 z-team 发到 1.0.46） |
-| parent | `io.github.yuku123:z-boot-parent:1.1.2` |
+| parent | `io.github.yuku123:z-boot-parent:1.2.4` |
 | Java | Java 8 编译 / JRE 17 运行 |
 | 兄弟仓钉版 | `z-team-agent-core:1.0.46` · `z-llm-msghub-client:1.0.46` · `z-util-{core,parser-json,dsl-kernel}:1.2.4`（reactor DM 统一钉） |
 
@@ -56,7 +56,7 @@ curl http://127.0.0.1:19098/health  →  {"status":"ok"}
 
 ```
 z-llm-agent/
-├── pom.xml                  # reactor：parent z-boot-parent:1.1.2，flatten 常开
+├── pom.xml                  # reactor：parent z-boot-parent:1.2.4，flatten 常开
 ├── _doc/  deploy/           # 架构文档与 proxy 的 Dockerfile/compose/Makefile
 ├── z-llm-agent-proxy/src/   # proxy/（HTTP 层 10 类）+ wrapper/（CLI 适配 17 类）+ 8 测试类
 └── z-llm-agent-{common,core,client,starter}/

@@ -1,6 +1,6 @@
 package com.zifang.z.team.cliagent.api;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * SSE 流式响应头：禁用 nginx 缓冲。

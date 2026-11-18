@@ -16,7 +16,7 @@ z-agent-proxy 是**三方 coding agent 的适配代理库**：把「本机子进
 
 ```
 z-agent-proxy/
-├── pom.xml                     # parent z-boot-parent:1.1.0，<revision>0.1.1</revision>，flatten oss
+├── pom.xml                     # parent z-boot-parent:1.2.4，<revision>0.1.1</revision>，flatten oss
 ├── LICENSE                     # MIT
 ├── README.md
 ├── _frontend/

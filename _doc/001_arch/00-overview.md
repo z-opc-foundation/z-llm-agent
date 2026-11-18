@@ -52,7 +52,7 @@ wrapper/  （17 类）  CLI 适配 + 进程 + 流式解析       ← "对内"
 
 | 项 | 改前 | 改后 |
 |---|---|---|
-| parent | `z-llm-agent`（`relativePath ../pom.xml`） | `z-boot-parent:1.1.2`（`relativePath` 留空，在 repo1） |
+| parent | `z-llm-agent`（`relativePath ../pom.xml`） | `z-boot-parent:1.2.4`（`relativePath` 留空，在 repo1） |
 | 版本 | 继承 z-team 的 `${revision}`（1.0.47） | 本仓自持 `${revision}`，起点 `1.0.47`（接 Central 上的 1.0.46） |
 | `z-team-agent-core` | 无版本（父 DM 管） | **显式 `1.0.46`**（z-boot-parent 不管这条线） |
 | 包名 | `com.zifang.z.team.agent.proxy` | **不变** |
